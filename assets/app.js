@@ -1,0 +1,45 @@
+// Общая логика трёх страниц. Сообщения подготавливаются в браузере, без сервера.
+const menuButton=document.querySelector('.menu-toggle');
+const navigation=document.querySelector('.main-nav');
+menuButton?.addEventListener('click',()=>{const open=menuButton.getAttribute('aria-expanded')!=='true';menuButton.setAttribute('aria-expanded',String(open));menuButton.textContent=open?'Закрыть ×':'Меню ☰';navigation.classList.toggle('open',open)});
+navigation?.addEventListener('click',event=>{if(event.target.closest('a')){navigation.classList.remove('open');menuButton.setAttribute('aria-expanded','false');menuButton.textContent='Меню ☰'}});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&navigation?.classList.contains('open')){navigation.classList.remove('open');menuButton.setAttribute('aria-expanded','false');menuButton.textContent='Меню ☰';menuButton.focus()}});
+
+let toastTimer;
+function notify(message){const node=document.getElementById('toast');node.textContent=message;node.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{node.hidden=true},3200)}
+async function copyText(text){try{await navigator.clipboard.writeText(text);notify('Скопировано')}catch{const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.opacity='0';document.body.append(area);area.select();const success=document.execCommand('copy');area.remove();notify(success?'Скопировано':'Выдели и скопируй текст вручную')}}
+document.querySelectorAll('[data-copy-handle]').forEach(button=>button.addEventListener('click',()=>copyText('@Stravl001')));
+
+document.querySelectorAll('.filter').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));document.querySelectorAll('[data-category]').forEach(card=>{card.hidden=button.dataset.filter!=='all'&&card.dataset.category!==button.dataset.filter});const status=document.getElementById('filter-status');if(status)status.textContent=`Показано проектов: ${document.querySelectorAll('[data-category]:not([hidden])').length}`}));
+
+const projects={
+ shop:{title:'Telegram-бот «Магазин»',description:'Учебный проект: каталог из трёх товаров, добавление в корзину и подсчёт общей стоимости. Скриншот показывает сценарий от выбора товара до сводки заказа. Онлайн-оплата в этом примере не подключена.',image:'assets/bot-shop.jpg',alt:'Переписка с ботом-магазином: выбор товаров, корзина и заказ на 150 рублей',features:['Каталог товаров','Корзина','Итог заказа'],url:'https://t.me/Strav1Test_Bot',link:'Открыть бота в Telegram'},
+ quiz:{title:'Telegram-бот «Квиз»',description:'Учебный проект: вопросы с картинками, варианты ответов, подсчёт баллов и повторное прохождение. На скриншоте — завершённая викторина с результатом 2 из 2. Публичная ссылка на бота пока не добавлена.',image:'assets/quiz-bot.jpg',alt:'Переписка с квиз-ботом: два вопроса и результат 2 из 2',features:['Кнопки ответов','Подсчёт баллов','Повторное прохождение']},
+ site:{title:'Сайт-портфолио Stravl',description:'Этот сайт — тоже часть портфолио: адаптивная вёрстка, каталог работ с фильтрами, интерактивный пример бота и подготовка заявки в Telegram. Без конструкторов и дополнительных библиотек.',features:['HTML / CSS / JavaScript','Мобильная версия','Подготовка заявки'],url:'index.html',link:'На главную страницу'}
+};
+const dialog=document.getElementById('project-dialog');let dialogOpener;
+document.querySelectorAll('[data-project]').forEach(button=>button.addEventListener('click',()=>{const project=projects[button.dataset.project];if(!project)return;dialogOpener=button;document.getElementById('dialog-title').textContent=project.title;const body=document.getElementById('dialog-body');body.replaceChildren();const description=document.createElement('p');description.textContent=project.description;body.append(description);const features=document.createElement('div');features.className='dialog-features';project.features.forEach(text=>{const chip=document.createElement('span');chip.textContent=text;features.append(chip)});body.append(features);if(project.image){const img=document.createElement('img');img.src=project.image;img.alt=project.alt;body.append(img)}if(project.url){const link=document.createElement('a');link.className='button';link.href=project.url;link.textContent=project.link+' ↗';if(project.url.startsWith('https:')){link.target='_blank';link.rel='noopener noreferrer'}body.append(link)}dialog.showModal()}));
+dialog?.querySelector('.dialog-close').addEventListener('click',()=>dialog.close());
+dialog?.addEventListener('click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close()}});
+dialog?.addEventListener('close',()=>dialogOpener?.focus());
+
+// Игровой пример: посетитель может проверить механику квиза и корзины.
+const chatBubble=document.getElementById('demo-bubble');
+const chatOptions=document.getElementById('demo-options');
+let demoState={mode:'start',score:0,cart:[]};
+function renderDemo(text,choices){if(!chatBubble)return;chatBubble.textContent=text;chatOptions.replaceChildren();choices.forEach(({label,action})=>{const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',action);chatOptions.append(button)})}
+function demoStart(){demoState={mode:'start',score:0,cart:[]};renderDemo('Привет! Я бот, который умеет помогать. Что попробуем?', [{label:'🛍 Магазин',action:demoShop},{label:'✦ Квиз',action:demoQuiz}])}
+function demoShop(){demoState.mode='shop';const total=demoState.cart.reduce((sum,item)=>sum+item.price,0);renderDemo(demoState.cart.length?`В корзине: ${demoState.cart.length} шт. на ${total} ₽. Добавим ещё или оформим заказ?`:'Выбери товар — я добавлю его в корзину.',[{label:'Яблоко · 50 ₽',action:()=>{demoState.cart.push({name:'Яблоко',price:50});demoShop()}},{label:'Банан · 30 ₽',action:()=>{demoState.cart.push({name:'Банан',price:30});demoShop()}},{label:demoState.cart.length?'Заказать →':'Назад',action:demoState.cart.length?demoOrder:demoStart}])}
+function demoOrder(){const total=demoState.cart.reduce((sum,item)=>sum+item.price,0);renderDemo(`Демо-заказ: ${demoState.cart.map(item=>item.name.toLowerCase()).join(', ')}. Итого ${total} ₽. Это пример: покупка не совершается.`,[{label:'Попробовать ещё ↻',action:demoStart}])}
+function demoQuiz(){demoState.mode='quiz';demoState.score=0;renderDemo('Вопрос 1 из 2. На каком языке я создаю Telegram-ботов?',[{label:'Python',action:()=>demoQuestionTwo(true)},{label:'Java',action:()=>demoQuestionTwo(false)},{label:'C++',action:()=>demoQuestionTwo(false)}])}
+function demoQuestionTwo(correct){if(correct)demoState.score++;renderDemo(`${correct?'Верно!':'Правильный ответ — Python.'} Вопрос 2 из 2. Сколько будет 2 + 2?`,[{label:'3',action:()=>demoResult(false)},{label:'4',action:()=>demoResult(true)},{label:'5',action:()=>demoResult(false)}])}
+function demoResult(correct){if(correct)demoState.score++;renderDemo(`Готово! Твой результат: ${demoState.score} из 2. Так работают кнопки, логика и подсчёт баллов в квизе.`,[{label:'Ещё раз ↻',action:demoStart}])}
+if(chatBubble)demoStart();
+
+const briefForm=document.getElementById('brief-form');
+document.querySelectorAll('[data-service]').forEach(link=>link.addEventListener('click',()=>{const select=document.getElementById('service');if(select)select.value=link.dataset.service}));
+briefForm?.addEventListener('submit',event=>{event.preventDefault();if(!briefForm.reportValidity())return;const data=new FormData(briefForm);const name=String(data.get('name')).trim();const description=String(data.get('description')).trim();if(!description){document.getElementById('description').setCustomValidity('Опиши задачу хотя бы парой слов');briefForm.reportValidity();return}const text=[`Привет, Кирилл! ${name?'Меня зовут '+name+'.':''}`.trim(),`Хочу обсудить: ${data.get('service')}.`,`Задача: ${description}`,data.get('budget')?`Бюджет: ${data.get('budget')}.`:'Бюджет: обсудим.','Пишу с сайта Stravl.'].join('\n\n');document.getElementById('draft-text').value=text;document.getElementById('draft-telegram').href='https://t.me/Stravl001?text='+encodeURIComponent(text);const result=document.getElementById('draft-result');result.hidden=false;document.getElementById('draft-title').focus();result.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'nearest'})});
+document.getElementById('description')?.addEventListener('input',event=>event.target.setCustomValidity(''));
+document.getElementById('copy-draft')?.addEventListener('click',()=>copyText(document.getElementById('draft-text').value));
+// Если текст отредактирован, обновляем и черновик для Telegram.
+document.getElementById('draft-text')?.addEventListener('input',event=>{document.getElementById('draft-telegram').href='https://t.me/Stravl001?text='+encodeURIComponent(event.target.value)});
